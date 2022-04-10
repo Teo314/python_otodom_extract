@@ -9,14 +9,18 @@ txt_offers_file = 'offers.txt'
 
 class Offer:
     headers = ['ID', 'Date', 'Price', 'Currency', 'Area', 'Price per m2', 'Rooms', 'Market', 'URL', 'source']
-    instances = {'csv' : [], 'txt' : [], 'url' : []}
-    IDs = {'csv' : [], 'txt' : [], 'url' : []}
+    instances = {'csv': [], 'txt': [], 'url': []}
+    IDs = {'csv': [], 'txt': [], 'url': []}
 
     @classmethod
-    def import_offer_from_url(cls, url, source = 'url'):
+    def import_offer_from_url(cls, url, source='url'):
+
+        if not 'otodom.pl' in url:
+            raise TypeError(f"Incorrect offer URL: {url}.")
+
         # extract json file trom url
         html = requests.get(url).text
-        json_data = BeautifulSoup(html, 'html5lib').findAll(type="application/json")[0].next
+        json_data = BeautifulSoup(html, 'html.parser').findAll(type="application/json")[0].next
 
         # import json
         offer_dict = json.loads(json_data)
@@ -26,12 +30,14 @@ class Offer:
         # save offer attributes
         ID = offer_properties['id']
         date_created = offer_properties['dateCreated']
-        price = offer_properties['characteristics'][0]['value']
-        currency = offer_properties['characteristics'][0]['currency']
-        area = offer_properties['characteristics'][1]['value']
-        price_per_m = offer_properties['characteristics'][2]['value']
-        rooms = offer_properties['characteristics'][3]['value']
-        market = offer_properties['characteristics'][4]['value']
+        price, currency, area, price_per_m, rooms, market = None, None, None, None, None, None
+        for attr in offer_properties['characteristics']:
+            if attr['key'] == 'price': price = attr['value']
+            if attr['key'] == 'currency': currency = attr['value']
+            if attr['key'] == 'm': area = attr['value']
+            if attr['key'] == 'price_per_m': price_per_m = attr['value']
+            if attr['key'] == 'rooms_num': rooms = attr['value']
+            if attr['key'] == 'market': market = attr['value']
 
         attributes = [ID, date_created, price, currency, area, price_per_m, rooms, market, url, source]
 
@@ -39,7 +45,7 @@ class Offer:
 
         return offer
 
-    #import offers from csv file and return list of them
+    # import offers from csv file and return list of them
     @classmethod
     def import_offers_from_csv(cls, csv_file):
         with open(csv_file, 'r') as file:
@@ -56,13 +62,10 @@ class Offer:
         with open(txt_file, 'r') as file:
             urls = [line.strip() for line in file.readlines()]
         offers = []
-        #import offer from url, delete ID from 'url' source list and add to 'txt' source list
+        # import offer from url, delete ID from 'url' source list and add to 'txt' source list
         for url in urls:
-            if 'otodom.pl' in url:
-                offer = Offer.import_offer_from_url(url, source='txt')
-                offers.append(offer)
-            else:
-                print(f"Incorrect URL: {url}. Skipped.")
+            offer = Offer.import_offer_from_url(url, source='txt')
+            offers.append(offer)
         return offers
 
     @classmethod
@@ -74,13 +77,13 @@ class Offer:
             raise ValueError(f"Wrong number of offer attributes. Correct list contains as follows: {Offer.headers}")
         else:
             ID, date_created, price, currency, area, price_per_m, rooms, market, url, source = attributes
-            self.ID = int(ID)
+            self.ID = ID
             self.date_created = date_created
-            self.price = int(price)
+            self.price = price
             self.currency = currency
-            self.area = float(area)
-            self.price_per_m = int(price_per_m)
-            self.rooms_num = int(rooms)
+            self.area = area
+            self.price_per_m = price_per_m
+            self.rooms_num = rooms
             self.market = market
             self.url = url
             self.source = source
@@ -109,11 +112,14 @@ class Offer:
     def export_to_database(self):
         pass
 
+
 Offer.import_offers_from_csv(csv_offers_file)
 Offer.import_offers_from_txt(txt_offers_file)
+
 for offer in Offer.instances['txt']:
     if offer.is_exist('csv'):
         print(f'Offer ID {offer.ID} exists in csv file. Skipped.')
     else:
         offer.export_to_csv(csv_offers_file)
         print(f'Add offer ID {offer.ID} to csv file.')
+
