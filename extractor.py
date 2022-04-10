@@ -77,18 +77,20 @@ class Offer:
             raise ValueError(f"Wrong number of offer attributes. Correct list contains as follows: {Offer.headers}")
         else:
             ID, date_created, price, currency, area, price_per_m, rooms, market, url, source = attributes
-            self.ID = ID
+            self.ID = int(ID)
             self.date_created = date_created
-            self.price = price
+            self.price = int(price)
             self.currency = currency
-            self.area = area
-            self.price_per_m = price_per_m
-            self.rooms_num = rooms
+            self.area = float(area)
+            self.price_per_m = int(price_per_m) if price_per_m != None and price_per_m != 'None' else None
+            self.rooms_num = int(rooms) if rooms != None and rooms != 'None' else None
             self.market = market
             self.url = url
             self.source = source
 
+            #add Offer to list of instances
             Offer.instances[self.source].append(self)
+            #add Offer's ID to list od ID's
             Offer.IDs[self.source].append(self.ID)
 
     def __eq__(self, other):
